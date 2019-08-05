@@ -1,33 +1,54 @@
-set -ex
+#!/bin/bash
 
-# install vagrant and it dependencies, devel files to build vagrant plugins later
-# use new --allow-unsigned-rpm option if zypper supports it
-zypper_version=($(zypper -V))
-if [[ ${zypper_version[1]} < '1.14.4' ]]
-then
-    zypper --no-gpg-checks in -y https://releases.hashicorp.com/vagrant/2.2.4/vagrant_2.2.4_x86_64.rpm
-else
-    zypper in -y --allow-unsigned-rpm https://releases.hashicorp.com/vagrant/2.2.4/vagrant_2.2.4_x86_64.rpm
-fi
+VAGRANT_RPMS="vagrant vagrant-libvirt"
+LIBVIRT_RPMS="qemu-kvm libvirt-daemon-qemu libvirt"
 
-# workaround for https://github.com/hashicorp/vagrant/issues/10019
-mv /opt/vagrant/embedded/lib/libreadline.so.7{,.disabled} | true
-    
-zypper in -y ruby-devel
-zypper in -y gcc gcc-c++ make
-zypper in -y qemu-kvm libvirt-daemon-qemu libvirt libvirt-devel
+err()
+{
+    echo "$*" 1>&2
+}
 
-#need for vagrant-libvirt
-gem install ffi
-gem install unf_ext
-gem install ruby-libvirt
+err_use_devel_repo()
+{
+    local pkg_search="https://software.opensuse.org/package"
+    local devel_repo="https://build.opensuse.org/repositories/Virtualization:vagrant"
 
-systemctl enable libvirtd
-systemctl start libvirtd
+    err
+    err "Try using the development repository:"
+    err "    ${devel_repo}"
+    err
+    err "Or search for a suitable package:"
+    err "    ${pkg_search}"
+    err
 
-vagrant plugin install vagrant-libvirt
+    return 1
+}
 
-git clone --depth 1 https://github.com/openSUSE/vagrant-ceph
-#cd vagrant-ceph
+install_vagrant()
+{
+    local rpm_names="$1"
 
-#vagrant up
+    zypper -n in ${rpm_names}
+    local ret="$?"
+    if [ "${ret}" -eq 104 ]; then
+        # 104 - ZYPPER_EXIT_INF_CAP_NOT_FOUND
+        err_use_devel_repo
+    fi
+
+    return "${ret}"
+}
+
+install_libvirt()
+{
+    local rpm_names="$1"
+    local service_name="libvirtd.service"
+
+    zypper -n in ${rpm_names} || return "$?"
+
+    systemctl enable "${service_name}" &&
+    systemctl restart "${service_name}"
+}
+
+
+install_vagrant "$VAGRANT_RPMS" || exit "$?"
+install_libvirt "$LIBVIRT_RPMS" || exit "$?"

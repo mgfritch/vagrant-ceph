@@ -1,0 +1,15 @@
+{
+   "description" : "SES7 vagrant box",
+   "name" : "SUSE/SES7",
+   "versions" : [
+      {
+         "providers" : [
+            {
+               "name" : "libvirt",
+               "url" : "http://download.suse.de/ibs/Devel:/Storage:/images/Devel_7.0/SES7.x86_64-Vagrant-x86_64.box"
+            }
+         ],
+         "version" : "0.0.1"
+      }
+   ]
+}
